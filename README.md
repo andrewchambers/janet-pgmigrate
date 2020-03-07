@@ -24,11 +24,11 @@ my-migrations.janet
     :uuid "f70f658e-2185-462f-a02a-7396bcb98c72"
     :apply 
     (fn [conn]
-      (eprint "+++ Creating foobar table")
+      (eprint "+++ Creating foobar table.")
       (pq/exec conn "create table foobar(a text);"))
     :undo 
     (fn [conn]
-      (eprint "+++ Dropping foobar table")
+      (eprint "+++ Dropping foobar table.")
       (pq/exec conn "drop table foobar;"))
   }
 ])
