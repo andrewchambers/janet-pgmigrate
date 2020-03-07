@@ -4,8 +4,6 @@ Simple postgres schema management for libpq.
 
 # ClI usage
 
-
-
 Create your migration file:
 
 my-migrations.janet
@@ -36,6 +34,8 @@ my-migrations.janet
 ])
 
 ```
+
+Next you can query the current database migration, or transition the database schema with --from and --to.
 
 ```
 $ export PGMIGRATE_CONNECT="host=localhost dbname=postgres"
