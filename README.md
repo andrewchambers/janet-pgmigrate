@@ -2,7 +2,7 @@
 
 Simple postgres schema management for libpq.
 
-# ClI usage
+# CLI usage
 
 Create your migration file:
 
