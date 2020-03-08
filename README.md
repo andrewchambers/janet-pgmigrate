@@ -22,11 +22,11 @@ my-migrations.janet
   @{
     :desc "V1 application schema."
     :uuid "f70f658e-2185-462f-a02a-7396bcb98c72"
-    :apply 
+    :upgrade 
     (fn [conn]
       (eprint "+++ Creating foobar table.")
       (pq/exec conn "create table foobar(a text);"))
-    :undo 
+    :downgrade 
     (fn [conn]
       (eprint "+++ Dropping foobar table.")
       (pq/exec conn "drop table foobar;"))

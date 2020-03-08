@@ -5,33 +5,35 @@
  @{
     :desc "A boring uninitialized database."
     :uuid "e6c12b93-fca8-48d6-8793-47f839b67761"
-    :apply (fn [conn] (error "cannot apply the null migration"))
-    :undo  (fn [conn] nil)
+    :upgrade
+      (fn [conn] (error "cannot apply the null migration"))
+    :downgrade
+      (fn [conn] nil)
   })
 
 (def add-metadata-migration 
   @{
     :desc "Database with a migration metadata table."
     :uuid "19211e81-152d-4259-ac70-505a5f83256e"
-    :apply 
-    (fn
-      [conn]
-      (eprint "+++ Creating migration_metadata table.")
-      (pq/exec conn "
-        create table migration_metadata(
-          key text,
-          value text,
-          unique(key)
-        );
-      ")
-      # Insert an empty uuid, this will be overwritten with an update.
-      (pq/exec conn "
-        insert into migration_metadata(key, value) values('current_migration_uuid', '');
-      "))
-    :undo
-    (fn [conn]
-      (eprint "+++ Dropping migration_metadata table.")
-      (pq/exec conn "drop table migration_metadata;"))
+    :upgrade 
+      (fn
+        [conn]
+        (eprint "+++ Creating migration_metadata table.")
+        (pq/exec conn "
+          create table migration_metadata(
+            key text,
+            value text,
+            unique(key)
+          );
+        ")
+        # Insert an empty uuid, this will be overwritten with an update.
+        (pq/exec conn "
+          insert into migration_metadata(key, value) values('current_migration_uuid', '');
+        "))
+    :downgrade
+      (fn [conn]
+        (eprint "+++ Dropping migration_metadata table.")
+        (pq/exec conn "drop table migration_metadata;"))
   })
 
 (defn- migration-metadata-table-exists?
@@ -71,7 +73,7 @@
     (def next-m (get migrations (inc idx)))
     (if next-m
       (do
-        ((next-m :apply) conn)
+        ((next-m :upgrade) conn)
         (pq/exec conn "update migration_metadata set value = $1 where key = 'current_migration_uuid';" (next-m :uuid))
         next-m))
       (current-migration conn migrations)))
@@ -82,7 +84,7 @@
     (def idx (current-migration-index conn migrations))
     (def m (get migrations idx))
     (when-let [prev-m (get migrations (dec idx) uninitialized-migration)]
-      ((m :undo) conn)
+      ((m :downgrade) conn)
       (when (migration-metadata-table-exists? conn)
         (pq/exec conn
           "update migration_metadata set value = $1 where key = 'current_migration_uuid';"
@@ -94,8 +96,8 @@
   (and (= (length m) 4)
    (string? (m :uuid))
    (string? (m :desc))
-   (function? (m :apply))
-   (function? (m :undo))))
+   (function? (m :upgrade))
+   (function? (m :downgrade))))
 
 (defn migrate
   [conn migrations from-uuid to-uuid &opt confirm-cb]
