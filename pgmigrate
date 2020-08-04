@@ -48,14 +48,19 @@
         
         (var current-m (pgmigrate/current-migration conn migrations))
 
-        (unless (= (args "from") (current-m :uuid))
+        (def from
+          (if (= from ":current:")
+            (current-m :uuid)
+            from))
+
+        (unless (= from (current-m :uuid))
           (error
             (string/format "safety check failed, --from uuid does not match the current migration uuid: %v desc: %v"
               (current-m :uuid)
               (current-m :desc))))
 
         (def new-m
-          (pgmigrate/migrate conn migrations (args "from") (args "to")
+          (pgmigrate/migrate conn migrations from to
           (fn confirm [from-idx to-idx]
             (when (and (< to-idx from-idx) (not (args "downgrade")))
               (error "you must pass --downgrade when downgrading"))
