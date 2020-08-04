@@ -6,36 +6,36 @@
 (defn main [&]
   (def argparse-params
     ["A tool for managing postgres database migrations using janet pq."
-     
+
      "downgrade" {:kind :flag
                   :short "d"
                   :help "Allow downgrades."}
-     
+
      "module" {:kind :option
                :short "m"
                :help "Path to janet module containing migrations."
                :required true}
-     
+
      "from" {:kind :option
              :help "From migration id."}
-     
-     "to"   {:kind :option
-             :help "To migration id."}
+
+     "to" {:kind :option
+           :help "To migration id."}
 
      "connect" {:kind :option
                 :help "Database connection string."}])
-     
+
   (def args (argparse/argparse ;argparse-params))
   (unless args
     (os/exit 1))
 
-  (def migrations-env (dofile(args "module")))
+  (def migrations-env (dofile (args "module")))
 
   (def migrations (get-in migrations-env ['migrations :value]))
 
   (defn connect
     []
-    (pq/connect 
+    (pq/connect
       (or
         (args "connect")
         (os/getenv "PGMIGRATE_CONNECT")
@@ -43,39 +43,38 @@
 
   (match args
     {"from" from "to" to}
-      (do
-        (def conn (connect))
-        
-        (var current-m (pgmigrate/current-migration conn migrations))
+    (do
+      (def conn (connect))
 
-        (def from
-          (if (= from ":current:")
-            (current-m :uuid)
-            from))
+      (var current-m (pgmigrate/current-migration conn migrations))
 
-        (unless (= from (current-m :uuid))
-          (error
-            (string/format "safety check failed, --from uuid does not match the current migration uuid: %v desc: %v"
-              (current-m :uuid)
-              (current-m :desc))))
+      (def from
+        (if (= from ":current:")
+          (current-m :uuid)
+          from))
 
-        (def new-m
-          (pgmigrate/migrate conn migrations from to
-          (fn confirm [from-idx to-idx]
-            (when (and (< to-idx from-idx) (not (args "downgrade")))
-              (error "you must pass --downgrade when downgrading"))
-            true)))
+      (unless (= from (current-m :uuid))
+        (error
+          (string/format "safety check failed, --from uuid does not match the current migration uuid: %v desc: %v"
+                         (current-m :uuid)
+                         (current-m :desc))))
 
+      (def new-m
+        (pgmigrate/migrate conn migrations from to
+                           (fn confirm [from-idx to-idx]
+                             (when (and (< to-idx from-idx) (not (args "downgrade")))
+                               (error "you must pass --downgrade when downgrading"))
+                             true)))
 
-        (print "Migrated to:")
-        (print " uuid: " (new-m :uuid))
-        (print " desc: " (new-m :desc)))
+      (print "Migrated to:")
+      (print " uuid: " (new-m :uuid))
+      (print " desc: " (new-m :desc)))
 
     {"from" from}
-      (error "please specify --to")
+    (error "please specify --to")
 
     {"to" to}
-      (error "please specify --from")
+    (error "please specify --from")
 
     (do
       (def conn (connect))
@@ -83,4 +82,3 @@
       (print "Current Migration:")
       (print " uuid: " (m :uuid))
       (print " desc: " (m :desc)))))
-      

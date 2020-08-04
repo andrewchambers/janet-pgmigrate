@@ -1,44 +1,40 @@
 (import pq)
 
 (def uninitialized-migration
- @{
-    :desc "A boring uninitialized database."
+  @{:desc "A boring uninitialized database."
     :uuid "e6c12b93-fca8-48d6-8793-47f839b67761"
     :upgrade
-      (fn [conn] (error "cannot apply the null migration"))
+    (fn [conn] (error "cannot apply the null migration"))
     :downgrade
-      (fn [conn] nil)
-  })
+    (fn [conn] nil)})
 
-(def add-metadata-migration 
-  @{
-    :desc "Database with a migration metadata table."
+(def add-metadata-migration
+  @{:desc "Database with a migration metadata table."
     :uuid "19211e81-152d-4259-ac70-505a5f83256e"
-    :upgrade 
-      (fn
-        [conn]
-        (eprint "+++ Creating migration_metadata table.")
-        (pq/exec conn "
+    :upgrade
+    (fn
+      [conn]
+      (eprint "+++ Creating migration_metadata table.")
+      (pq/exec conn "
           create table migration_metadata(
             key text,
             value text,
             unique(key)
           );
         ")
-        # Insert an empty uuid, this will be overwritten with an update.
-        (pq/exec conn "
+      # Insert an empty uuid, this will be overwritten with an update.
+      (pq/exec conn "
           insert into migration_metadata(key, value) values('current_migration_uuid', '');
         "))
     :downgrade
-      (fn [conn]
-        (eprint "+++ Dropping migration_metadata table.")
-        (pq/exec conn "drop table migration_metadata;"))
-  })
+    (fn [conn]
+      (eprint "+++ Dropping migration_metadata table.")
+      (pq/exec conn "drop table migration_metadata;"))})
 
 (defn- migration-metadata-table-exists?
   [conn]
   (pq/val conn
-    "select exists
+          "select exists
       (select from information_schema.tables
        where table_schema = current_schema() 
          and table_name = 'migration_metadata');"))
@@ -68,39 +64,39 @@
 (defn- upgrade-once
   [conn migrations]
   (pq/txn conn {}
-    (def idx (current-migration-index conn migrations))
-    (def next-m (get migrations (inc idx)))
-    (if next-m
-      (do
-        ((next-m :upgrade) conn)
-        (pq/exec conn "update migration_metadata set value = $1 where key = 'current_migration_uuid';" (next-m :uuid))
-        next-m))
-      (current-migration conn migrations)))
+          (def idx (current-migration-index conn migrations))
+          (def next-m (get migrations (inc idx)))
+          (if next-m
+            (do
+              ((next-m :upgrade) conn)
+              (pq/exec conn "update migration_metadata set value = $1 where key = 'current_migration_uuid';" (next-m :uuid))
+              next-m))
+          (current-migration conn migrations)))
 
 (defn- downgrade-once
   [conn migrations]
   (pq/txn conn {}
-    (def idx (current-migration-index conn migrations))
-    (def m (get migrations idx))
-    (when-let [prev-m (get migrations (dec idx) uninitialized-migration)]
-      ((m :downgrade) conn)
-      (when (migration-metadata-table-exists? conn)
-        (pq/exec conn
-          "update migration_metadata set value = $1 where key = 'current_migration_uuid';"
-          (prev-m :uuid))))
-      (current-migration conn migrations)))
+          (def idx (current-migration-index conn migrations))
+          (def m (get migrations idx))
+          (when-let [prev-m (get migrations (dec idx) uninitialized-migration)]
+            ((m :downgrade) conn)
+            (when (migration-metadata-table-exists? conn)
+              (pq/exec conn
+                       "update migration_metadata set value = $1 where key = 'current_migration_uuid';"
+                       (prev-m :uuid))))
+          (current-migration conn migrations)))
 
 (defn- valid-migration?
   [m]
   (and (= (length m) 4)
-   (string? (m :uuid))
-   (string? (m :desc))
-   (function? (m :upgrade))
-   (function? (m :downgrade))))
+       (string? (m :uuid))
+       (string? (m :desc))
+       (function? (m :upgrade))
+       (function? (m :downgrade))))
 
 (defn migrate
   [conn migrations from-uuid to-uuid &opt confirm-cb]
-  
+
   (unless (indexed? migrations)
     (error "migrations must be an array or tuple"))
 
@@ -108,7 +104,7 @@
     (error "malformed migration in input"))
 
   (unless (= (length migrations)
-            (length (distinct (map |($ :uuid) migrations))))
+             (length (distinct (map |($ :uuid) migrations))))
     (error "all migrations must have unique uuids"))
 
   (unless migrations
@@ -126,18 +122,18 @@
   (unless (= from-uuid (current-m :uuid))
     (error
       (string/format "from uuid does not match the current migration uuid: %v desc: %v"
-        (current-m :uuid)
-        (current-m :desc))))
+                     (current-m :uuid)
+                     (current-m :desc))))
 
   (def from-idx (migration-uuid-to-idx migrations from-uuid))
   (def to-idx (migration-uuid-to-idx migrations to-uuid))
 
   (unless from-idx
     (error "specified from uuid matches no migration uuids"))
-  
+
   (unless to-idx
     (error "specified to uuid matches no migration uuids"))
-  
+
   (when (confirm-cb from-idx to-idx)
 
     (def n (- to-idx from-idx))
@@ -145,7 +141,7 @@
       (if (<= 0 n)
         [n upgrade-once "upgrade"]
         [(- n) downgrade-once "downgrade"]))
-    
+
     (loop [_ :range [0 n]]
       (set current-m (action conn migrations)))
 
@@ -159,3 +155,4 @@
 # (upgrade-once conn migrations)
 # (downgrade-once conn migrations)
 # (pq/all conn "select * from migration_metadata;")
+
