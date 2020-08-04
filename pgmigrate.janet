@@ -1,4 +1,3 @@
-(use xcore)
 (import pq)
 
 (def uninitialized-migration

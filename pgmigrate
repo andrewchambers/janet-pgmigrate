@@ -17,10 +17,10 @@
                :required true}
      
      "from" {:kind :option
-             :help "An API key for getting stuff from a server."}
+             :help "From migration id."}
      
      "to"   {:kind :option
-             :help "An API key for getting stuff from a server."}
+             :help "To migration id."}
 
      "connect" {:kind :option
                 :help "Database connection string."}])
