@@ -1,7 +1,7 @@
 #! /usr/bin/env janet
-(import pq)
-(import argparse)
+(import spork/argparse)
 (import pgmigrate)
+(import pq)
 
 (defn main [&]
   (def argparse-params
@@ -29,7 +29,7 @@
   (unless args
     (os/exit 1))
 
-  (def migrations-env (dofile (args "module")))
+  (def migrations-env (dofile (args "module") :exit true))
 
   (def migrations (get-in migrations-env ['migrations :value]))
 
